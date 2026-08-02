@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>浏览器自动化控制面板</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0f0f23; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; min-height: 100vh; }
+.header { background: #1a1a2e; padding: 14px 24px; font-size: 18px; font-weight: 600; border-bottom: 1px solid #16213e; display:flex; align-items:center; gap:12px; }
+.header .badge { background: #e94560; color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 400; }
+.container { max-width: 960px; margin: 0 auto; padding: 16px 20px; }
+
+/* Tabs */
+.tab-bar { display: flex; gap: 0; overflow-x: auto; border-bottom: 2px solid #16213e; }
+.tab-item {
+  background: #1a1a2e; border: 1px solid #16213e; border-bottom: none;
+  padding: 8px 14px; font-size: 13px; cursor: pointer; white-space: nowrap;
+  color: #888; border-radius: 8px 8px 0 0; margin-right: 2px;
+  display: flex; align-items: center; gap: 6px; transition: all 0.15s;
+  max-width: 200px; overflow: hidden; text-overflow: ellipsis;
+}
+.tab-item:hover { color: #ccc; }
+.tab-item.active { background: #0f3460; color: #e94560; border-color: #e94560; font-weight: 600; }
+.tab-item .tab-url { font-size: 11px; color: #666; max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
+.tab-item.active .tab-url { color: #e94560; }
+.tab-add {
+  background: transparent; border: 1px dashed #333; color: #555; cursor: pointer;
+  padding: 8px 12px; font-size: 16px; border-radius: 8px 8px 0 0; margin-right: 2px;
+  transition: all 0.15s; display: flex; align-items: center;
+}
+.tab-add:hover { color: #e94560; border-color: #e94560; }
+
+.card { background: #1a1a2e; border-radius: 10px; padding: 16px 20px; margin-bottom: 14px; border: 1px solid #16213e; }
+.card-title { font-size: 13px; color: #a0a0b0; margin-bottom: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.row + .row { margin-top: 8px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+input, textarea, select {
+  background: #16213e; border: 1px solid #0f3460; color: #e0e0e0;
+  border-radius: 6px; padding: 8px 12px; font-size: 14px; outline: none;
+  transition: border-color 0.2s;
+}
+input:focus, textarea:focus, select:focus { border-color: #e94560; }
+input[type="text"] { flex: 1; min-width: 120px; }
+textarea { width: 100%; resize: vertical; font-family: "Consolas", "Courier New", monospace; min-height: 60px; }
+select { cursor: pointer; }
+
+.btn {
+  background: linear-gradient(135deg, #e94560, #c23152); color: #fff; border: none;
+  border-radius: 6px; padding: 8px 18px; font-size: 14px; cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s; white-space: nowrap; font-weight: 500;
+}
+.btn:hover { opacity: 0.9; }
+.btn:active { transform: scale(0.97); }
+.btn-sm { padding: 6px 14px; font-size: 13px; }
+.btn-stop { background: linear-gradient(135deg, #555, #444); }
+.btn-success { background: linear-gradient(135deg, #2d6a4f, #1b4332); }
+.btn-warn { background: linear-gradient(135deg, #e09f3e, #c77d20); }
+
+.current-url { font-size: 12px; color: #888; word-break: break-all; margin-top: 6px; }
+
+.result-area {
+  background: #0a0a1a; border: 1px solid #16213e; border-radius: 8px;
+  padding: 12px; font-family: "Consolas", "Courier New", monospace;
+  font-size: 13px; max-height: 400px; overflow-y: auto; white-space: pre-wrap;
+  word-break: break-all; line-height: 1.5;
+}
+.result-entry { border-bottom: 1px solid #16213e; padding: 8px 0; }
+.result-entry:last-child { border-bottom: none; }
+.result-time { color: #e94560; font-size: 11px; margin-bottom: 4px; }
+.result-error { color: #ff6b6b; }
+.result-success { color: #51cf66; }
+.result-img { max-width: 100%; border-radius: 4px; }
+.result-links { display: flex; flex-direction: column; gap: 4px; }
+.result-links a { color: #7ec8e3; text-decoration: none; word-break: break-all; }
+.result-links a:hover { text-decoration: underline; }
+
+.step-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+.step-row select { width: 80px; flex-shrink: 0; }
+.step-row input { flex: 1; }
+.step-row .btn-remove { background: #333; padding: 4px 8px; font-size: 12px; }
+
+.collapsible { cursor: pointer; }
+.collapsible::after { content: ' ▾'; font-size: 10px; }
+.collapsible.collapsed::after { content: ' ▸'; }
+.collapse-content { display: block; }
+.collapse-content.hidden { display: none; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  浏览器自动化控制面板
+  <span class="badge" id="windowCount">0 窗口</span>
+</div>
+
+<div class="container">
+
+  <!-- ====== 动态标签页地址栏 ====== -->
+  <div class="card" style="padding-bottom:10px;">
+    <div class="card-title">窗口列表</div>
+    <div class="tab-bar" id="tabBar">
+      <!-- 动态渲染 -->
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <input type="text" id="tabUrlInput" value="https://example.com" placeholder="输入网址后按回车导航...">
+      <button class="btn" onclick="tabNavigate()">导航</button>
+      <span class="current-url" id="tabStatus">当前: —</span>
+    </div>
+  </div>
+
+  <!-- ====== 快捷操作 ====== -->
+  <div class="card">
+    <div class="card-title">快捷操作</div>
+    <div class="row">
+      <button class="btn btn-sm" onclick="quickAction('/api/extract', {selector:'title', attribute:'text'})">提取标题</button>
+      <button class="btn btn-sm" onclick="quickAction('/api/links', {})">提取链接</button>
+      <button class="btn btn-sm" onclick="quickAction('/api/screenshot', {})">截图</button>
+      <button class="btn btn-sm btn-stop" onclick="quickAction('/api/stop', {})">停止</button>
+    </div>
+  </div>
+
+  <!-- ====== CSS 提取 + JS 执行 ====== -->
+  <div class="card">
+    <div class="card-title">CSS 选择器提取 &amp; JS 执行</div>
+    <div class="row">
+      <input type="text" id="cssSelector" value="h1" placeholder="CSS 选择器">
+      <select id="cssAttr">
+        <option value="text">text</option>
+        <option value="html">html</option>
+        <option value="value">value</option>
+      </select>
+      <input type="text" id="waitSelector" placeholder="等待选择器（可选）" style="max-width:150px;">
+      <input type="text" id="waitDynamic" placeholder="等待秒数（可选）" style="max-width:100px;" value="">
+      <button class="btn btn-sm" onclick="extractCSS()">提取</button>
+    </div>
+    <div class="row">
+      <textarea id="jsCode" style="min-height:40px;">document.title</textarea>
+      <button class="btn btn-sm" onclick="execJS()" style="flex-shrink:0;">执行JS</button>
+    </div>
+  </div>
+
+  <!-- ====== 表单填写 ====== -->
+  <div class="card">
+    <div class="card-title">表单操作</div>
+    <div class="row">
+      <input type="text" id="fillSelector" value="input[name='q']" placeholder="选择器">
+      <input type="text" id="fillValue" placeholder="输入值">
+    </div>
+    <div class="row">
+      <button class="btn btn-sm" onclick="doFill()">填写</button>
+      <button class="btn btn-sm" onclick="doClick()">点击</button>
+    </div>
+  </div>
+
+  <!-- ====== 登录 ====== -->
+  <div class="card">
+    <div class="card-title collapsible collapsed" onclick="toggleCollapse(this)">登录</div>
+    <div class="collapse-content hidden" id="loginSection">
+      <div class="row">
+        <input type="text" id="loginUrl" placeholder="登录页面 URL">
+        <input type="text" id="loginUsername" placeholder="用户名">
+        <input type="text" id="loginPassword" placeholder="密码" type="password">
+      </div>
+      <div class="row">
+        <input type="text" id="loginExtract" placeholder="登录后提取选择器（可选）" style="max-width:200px;">
+        <button class="btn btn-sm" onclick="doLogin()">登录</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== 搜索 ====== -->
+  <div class="card">
+    <div class="card-title collapsible collapsed" onclick="toggleCollapse(this)">搜索</div>
+    <div class="collapse-content hidden" id="searchSection">
+      <div class="row">
+        <input type="text" id="searchUrl" placeholder="搜索引擎 URL" value="https://www.bing.com">
+        <input type="text" id="searchQuery" placeholder="搜索关键词">
+        <input type="text" id="searchInput" placeholder="输入框选择器" value="input[name=q]">
+      </div>
+      <div class="row">
+        <input type="text" id="searchSubmit" placeholder="提交按钮选择器（可选）">
+        <input type="text" id="searchExtract" placeholder="结果选择器（可选）" style="max-width:180px;">
+        <input type="text" id="searchWait" placeholder="等待秒数" value="2" style="max-width:80px;">
+        <button class="btn btn-sm btn-warn" onclick="doSearch()">搜索</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== 多步操作 ====== -->
+  <div class="card">
+    <div class="card-title collapsible collapsed" onclick="toggleCollapse(this)">多步操作（fill-steps）</div>
+    <div class="collapse-content hidden" id="stepsSection">
+      <div class="row">
+        <input type="text" id="stepsUrl" placeholder="目标页面 URL">
+      </div>
+      <div id="stepsList">
+        <!-- 动态添加步骤 -->
+      </div>
+      <div class="row">
+        <button class="btn btn-sm" onclick="addStep()">+ 添加步骤</button>
+        <button class="btn btn-sm btn-warn" onclick="runSteps()">执行所有步骤</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== 结果 ====== -->
+  <div class="card">
+    <div class="card-title">结果</div>
+    <div class="result-area" id="resultArea"></div>
+    <div class="row" style="margin-top:10px;">
+      <button class="btn btn-sm btn-success" onclick="saveResult()">保存当前结果</button>
+      <span class="current-url" id="saveHint" style="margin-left:8px;">下载到本地</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// 服务端注入的访问令牌（webui 启动时自动生成）
+const WEBUI_TOKEN = {{ token | tojson }};
+// ======================================================================
+// 全局状态
+// ======================================================================
+let activeWindowIndex = 0;
+let allWindows = [];
+let lastResultType = '';
+let lastResultData = null;
+let stepCounter = 0;
+
+// ======================================================================
+// 工具函数
+// ======================================================================
+function timeStr() { return new Date().toLocaleTimeString('zh-CN'); }
+
+function appendResult(type, content) {
+  lastResultType = type;
+  lastResultData = content;
+  const area = document.getElementById('resultArea');
+  const entry = document.createElement('div');
+  entry.className = 'result-entry';
+  const time = document.createElement('div');
+  time.className = 'result-time';
+  time.textContent = '[' + timeStr() + '] ' + type;
+  entry.appendChild(time);
+
+  if (type === '截图') {
+    const img = document.createElement('img');
+    img.className = 'result-img';
+    img.src = 'data:image/png;base64,' + (content || '');
+    entry.appendChild(img);
+  } else if (type === '链接') {
+    const div = document.createElement('div');
+    div.className = 'result-links';
+    if (Array.isArray(content)) {
+      content.forEach(function(link) {
+        // 拒绝 javascript:/data:/vbscript: 等危险协议链接
+        const href = link.url || link.href || '#';
+        if (/^(javascript|data|vbscript):/i.test(href)) { return; }
+        const a = document.createElement('a');
+        a.href = href;
+        a.target = '_blank';
+        a.textContent = link.text || (typeof link === 'object' ? JSON.stringify(link) : link);
+        div.appendChild(a);
+      });
+    } else { div.textContent = content; }
+    entry.appendChild(div);
+  } else if (type === '错误') {
+    const div = document.createElement('div');
+    div.className = 'result-error';
+    div.textContent = content;
+    entry.appendChild(div);
+  } else {
+    const div = document.createElement('div');
+    div.className = 'result-success';
+    div.textContent = typeof content === 'object' ? JSON.stringify(content, null, 2) : String(content);
+    entry.appendChild(div);
+  }
+  area.appendChild(entry);
+  area.scrollTop = area.scrollHeight;
+}
+
+async function api(url, data) {
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (WEBUI_TOKEN) { headers['X-Browser-CLI-Token'] = WEBUI_TOKEN; }
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(data)
+    });
+    const result = await res.json();
+    if (!res.ok) {
+      appendResult('错误', result.error || '请求失败 (' + res.status + ')');
+      return result;
+    }
+    return result;
+  } catch (err) {
+    appendResult('错误', err.message || '网络错误');
+    return { error: err.message };
+  }
+}
+
+async function apiGet(url) {
+  try {
+    const opts = WEBUI_TOKEN ? { headers: { 'X-Browser-CLI-Token': WEBUI_TOKEN } } : {};
+    const res = await fetch(url, opts);
+    const result = await res.json();
+    if (!res.ok) {
+      appendResult('错误', result.error || '请求失败 (' + res.status + ')');
+      return result;
+    }
+    return result;
+  } catch (err) {
+    appendResult('错误', err.message || '网络错误');
+    return { error: err.message };
+  }
+}
+
+function toggleCollapse(el) {
+  el.classList.toggle('collapsed');
+  const content = el.parentElement.querySelector('.collapse-content');
+  if (content) content.classList.toggle('hidden');
+}
+
+// ======================================================================
+// 窗口标签页管理
+// ======================================================================
+async function refreshWindows() {
+  const r = await apiGet('/api/windows');
+  if (!r.ok) return;
+  allWindows = r.windows || [];
+  activeWindowIndex = r.active_index || 0;
+  renderTabs();
+  updateStatus();
+  document.getElementById('windowCount').textContent = allWindows.length + ' 窗口';
+}
+
+function renderTabs() {
+  const bar = document.getElementById('tabBar');
+  bar.innerHTML = '';
+  allWindows.forEach(function(w) {
+    const tab = document.createElement('div');
+    tab.className = 'tab-item' + (w.active ? ' active' : '');
+    tab.title = w.url || 'about:blank';
+    tab.onclick = function() { switchWindow(w.index); };
+    tab.innerHTML = '<span>' + w.title + '</span>' +
+      '<span class="tab-url">' + (w.url || 'about:blank').substring(0, 50) + '</span>';
+    bar.appendChild(tab);
+  });
+  // 添加按钮
+  const addBtn = document.createElement('div');
+  addBtn.className = 'tab-add';
+  addBtn.textContent = '+';
+  addBtn.title = '已有 ' + allWindows.length + ' 个窗口，点击切换';
+  addBtn.onclick = function() {
+    // 循环切换到下一个窗口
+    const next = (activeWindowIndex + 1) % allWindows.length;
+    switchWindow(next);
+  };
+  bar.appendChild(addBtn);
+}
+
+async function switchWindow(index) {
+  const r = await api('/api/windows/switch', { index: index });
+  if (r.ok) {
+    activeWindowIndex = r.active_index;
+    await refreshWindows();
+    // 更新地址栏为当前窗口 URL
+    const w = allWindows.find(function(x) { return x.active; });
+    if (w) document.getElementById('tabUrlInput').value = w.url || '';
+  }
+}
+
+async function tabNavigate() {
+  const url = document.getElementById('tabUrlInput').value.trim();
+  if (!url) return;
+  const r = await api('/api/goto', { url: url, window_index: activeWindowIndex });
+  if (r.ok) {
+    appendResult('导航', '窗口 ' + (activeWindowIndex + 1) + ' 已导航至: ' + url);
+    await refreshWindows();
+  }
+}
+
+function updateStatus() {
+  const w = allWindows.find(function(x) { return x.active; });
+  if (w) {
+    document.getElementById('tabStatus').textContent =
+      '窗口 ' + (w.index + 1) + ' — ' + (w.url || 'about:blank');
+    document.getElementById('tabUrlInput').value = w.url || '';
+  }
+}
+
+// 回车键导航
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('tabUrlInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') tabNavigate();
+  });
+  // 初始化：加载窗口列表
+  refreshWindows();
+  // 添加默认步骤
+  addStep();
+});
+
+// ======================================================================
+// 快捷操作
+// ======================================================================
+function quickAction(endpoint, data) {
+  data.window_index = activeWindowIndex;
+  api(endpoint, data).then(function(r) {
+    if (endpoint === '/api/extract' && data.selector === 'title') {
+      appendResult('提取标题', r.result !== undefined ? r.result : JSON.stringify(r));
+    } else if (endpoint === '/api/links') {
+      appendResult('链接', r.links || r.result || r);
+    } else if (endpoint === '/api/screenshot') {
+      appendResult('截图', r.screenshot || r.result || '');
+    } else if (endpoint === '/api/stop') {
+      appendResult('停止', r.message || '已停止');
+    } else {
+      appendResult('结果', typeof r === 'object' ? JSON.stringify(r, null, 2) : String(r));
+    }
+  });
+}
+
+// ======================================================================
+// CSS 提取
+// ======================================================================
+function extractCSS() {
+  const selector = document.getElementById('cssSelector').value.trim();
+  const attr = document.getElementById('cssAttr').value;
+  const waitSel = document.getElementById('waitSelector').value.trim();
+  const waitDyn = parseFloat(document.getElementById('waitDynamic').value) || 0;
+  if (!selector) return;
+
+  const data = { selector: selector, attribute: attr, window_index: activeWindowIndex };
+  if (waitSel) data.wait_selector = waitSel;
+  if (waitDyn) data.wait_dynamic = waitDyn;
+
+  api('/api/extract', data).then(function(r) {
+    appendResult('提取', r.result !== undefined ? r.result : JSON.stringify(r));
+  });
+}
+
+// ======================================================================
+// JS 执行
+// ======================================================================
+function execJS() {
+  const code = document.getElementById('jsCode').value.trim();
+  if (!code) return;
+  api('/api/exec_js', { code: code, window_index: activeWindowIndex }).then(function(r) {
+    appendResult('执行JS', r.result !== undefined ? r.result : JSON.stringify(r));
+  });
+}
+
+// ======================================================================
+// 表单填写
+// ======================================================================
+function doFill() {
+  const selector = document.getElementById('fillSelector').value.trim();
+  const value = document.getElementById('fillValue').value;
+  if (!selector) return;
+  api('/api/fill', { selector: selector, value: value, window_index: activeWindowIndex }).then(function(r) {
+    appendResult('填写', r.message || '已填写: ' + selector);
+  });
+}
+
+function doClick() {
+  const selector = document.getElementById('fillSelector').value.trim();
+  if (!selector) return;
+  api('/api/click', { selector: selector, window_index: activeWindowIndex }).then(function(r) {
+    appendResult('点击', r.message || '已点击: ' + selector);
+    refreshWindows();
+  });
+}
+
+// ======================================================================
+// 登录
+// ======================================================================
+function doLogin() {
+  const url = document.getElementById('loginUrl').value.trim();
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value.trim();
+  const extract = document.getElementById('loginExtract').value.trim();
+  if (!url || !username || !password) return appendResult('错误', '请填写 URL、用户名和密码');
+
+  const data = { url: url, username: username, password: password, window_index: activeWindowIndex };
+  if (extract) data.extract_selector = extract;
+
+  api('/api/login', data).then(function(r) {
+    if (r.ok) {
+      appendResult('登录', r.message + ' | URL: ' + r.url);
+      if (r.extract) appendResult('登录后提取', r.extract);
+      refreshWindows();
+    }
+  });
+}
+
+// ======================================================================
+// 搜索
+// ======================================================================
+function doSearch() {
+  const url = document.getElementById('searchUrl').value.trim();
+  const query = document.getElementById('searchQuery').value.trim();
+  const inputSel = document.getElementById('searchInput').value.trim();
+  const submitSel = document.getElementById('searchSubmit').value.trim();
+  const extract = document.getElementById('searchExtract').value.trim();
+  const wait = document.getElementById('searchWait').value.trim();
+  if (!url || !query || !inputSel) return appendResult('错误', '请填写 URL、查询词和输入框选择器');
+
+  const data = {
+    url: url, query: query, input_selector: inputSel,
+    window_index: activeWindowIndex, wait_result: parseFloat(wait) || 2
+  };
+  if (submitSel) data.submit_selector = submitSel;
+  if (extract) data.extract_selector = extract;
+
+  api('/api/search', data).then(function(r) {
+    if (r.ok) {
+      appendResult('搜索', r.message + ' | URL: ' + r.url);
+      if (r.extract) appendResult('搜索结果', r.extract);
+      refreshWindows();
+    }
+  });
+}
+
+// ======================================================================
+// 多步操作
+// ======================================================================
+function addStep() {
+  stepCounter++;
+  const list = document.getElementById('stepsList');
+  const row = document.createElement('div');
+  row.className = 'step-row';
+  row.id = 'stepRow' + stepCounter;
+  row.innerHTML =
+    '<select>' +
+      '<option value="fill">fill</option>' +
+      '<option value="click">click</option>' +
+      '<option value="wait">wait</option>' +
+      '<option value="type">type</option>' +
+      '<option value="select">select</option>' +
+      '<option value="extract">extract</option>' +
+    '</select>' +
+    '<input type="text" placeholder="选择器" value="">' +
+    '<input type="text" placeholder="值/参数" value="">' +
+    '<button class="btn btn-sm btn-remove" onclick="removeStep(\'stepRow' + stepCounter + '\')">×</button>';
+  list.appendChild(row);
+}
+
+function removeStep(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+}
+
+function runSteps() {
+  const url = document.getElementById('stepsUrl').value.trim();
+  if (!url) return appendResult('错误', '请填写目标页面 URL');
+
+  const steps = [];
+  const rows = document.querySelectorAll('#stepsList .step-row');
+  rows.forEach(function(row) {
+    const action = row.querySelector('select').value;
+    const inputs = row.querySelectorAll('input');
+    const args = [];
+    inputs.forEach(function(inp) {
+      const v = inp.value.trim();
+      if (v) args.push(v);
+    });
+    if (action && args.length > 0) steps.push({ action: action, args: args });
+  });
+
+  if (steps.length === 0) return appendResult('错误', '请至少添加一个有效步骤');
+
+  api('/api/fill-steps', { url: url, steps: steps, window_index: activeWindowIndex }).then(function(r) {
+    if (r.ok) {
+      appendResult('多步操作', '完成 ' + r.results.length + ' 个步骤 | URL: ' + r.url);
+      r.results.forEach(function(s) {
+        if (s.data) appendResult('步骤:' + s.action, s.data);
+        else if (s.status !== 'ok') appendResult('步骤:' + s.action, '状态: ' + s.status);
+      });
+      refreshWindows();
+    }
+  });
+}
+
+// ======================================================================
+// 保存结果
+// ======================================================================
+function saveResult() {
+  if (!lastResultData) {
+    appendResult('保存', '没有可保存的结果，请先执行操作');
+    return;
+  }
+  var blob, filename, ext;
+  var hint = document.getElementById('saveHint');
+
+  if (lastResultType === '截图') {
+    var byteChars = atob(lastResultData);
+    var bytes = new Uint8Array(byteChars.length);
+    for (var i = 0; i < byteChars.length; i++) { bytes[i] = byteChars.charCodeAt(i); }
+    blob = new Blob([bytes], {type: 'image/png'});
+    ext = 'png';
+  } else {
+    var text = typeof lastResultData === 'object' ? JSON.stringify(lastResultData, null, 2) : String(lastResultData);
+    blob = new Blob([text], {type: 'text/plain;charset=utf-8'});
+    ext = lastResultType === '链接' ? 'json' : 'txt';
+  }
+
+  filename = lastResultType + '_' + Date.now() + '.' + ext;
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  appendResult('保存', '已下载: ' + filename);
+  hint.textContent = '最近保存: ' + filename;
+}
+</script>
+</body>
+</html>

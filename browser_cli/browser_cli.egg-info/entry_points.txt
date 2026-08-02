@@ -1,0 +1,2 @@
+[console_scripts]
+browser-cli = browser_cli.cli:main

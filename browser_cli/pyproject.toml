@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "browser-cli"
+version = "0.1.0"
+description = "基于 pywebview 的浏览器自动化 CLI 工具"
+requires-python = ">=3.10"
+dependencies = [
+    "pywebview>=5.0",
+    "click>=8.0",
+    "pyyaml>=6.0",
+    "pillow>=10.0",
+    "beautifulsoup4>=4.12",
+]
+
+[project.scripts]
+browser-cli = "browser_cli.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["browser_cli*"]

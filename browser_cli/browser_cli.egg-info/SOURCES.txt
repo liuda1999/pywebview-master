@@ -1,0 +1,8 @@
+README.md
+pyproject.toml
+browser_cli.egg-info/PKG-INFO
+browser_cli.egg-info/SOURCES.txt
+browser_cli.egg-info/dependency_links.txt
+browser_cli.egg-info/entry_points.txt
+browser_cli.egg-info/requires.txt
+browser_cli.egg-info/top_level.txt

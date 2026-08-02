@@ -1,0 +1,75 @@
+# browser-cli 示例剧本
+# 演示所有支持的自动化操作
+# 使用 httpbin.org 作为目标站点
+
+name: "httpbin 表单提交与提取演示"
+description: "访问 httpbin.org 表单页面，填写并提交，然后提取返回结果并截图"
+
+steps:
+  # 1. 导航到目标页面
+  - action: goto
+    url: "https://httpbin.org/forms/post"
+
+  # 2. 等待表单加载完成
+  - action: wait
+    selector: "form"
+    timeout: 10
+
+  # 3. 填写文本输入框 — 客户姓名
+  - action: fill
+    selector: 'input[name="custname"]'
+    value: "张三"
+
+  # 4. 填写电话号码
+  - action: fill
+    selector: 'input[name="custtel"]'
+    value: "13800138000"
+
+  # 5. 填写邮箱
+  - action: fill
+    selector: 'input[name="custemail"]'
+    value: "zhangsan@example.com"
+
+  # 6. 选择 pizza 大小 — 单选按钮
+  - action: click
+    selector: 'input[name="size"][value="medium"]'
+
+  # 7. 选择配料 — 复选框 (bacon)
+  - action: click
+    selector: 'input[name="topping"][value="bacon"]'
+
+  # 8. 选择配料 — 复选框 (cheese)
+  - action: click
+    selector: 'input[name="topping"][value="cheese"]'
+
+  # 9. 填写配送时间
+  - action: fill
+    selector: 'input[name="delivery"]'
+    value: "18:30"
+
+  # 10. 填写备注
+  - action: fill
+    selector: 'textarea[name="comments"]'
+    value: "请多加芝士，谢谢！"
+
+  # 11. 点击提交按钮
+  - action: click
+    selector: "button"
+
+  # 11.5 等待页面跳转完成
+  - action: wait_loaded
+    timeout: 15
+
+  # 12. 等待结果页面出现
+  - action: wait
+    selector: "pre"
+    timeout: 15
+
+  # 13. 提取 JSON 响应内容
+  - action: extract
+    selector: "pre"
+    attribute: "text"
+
+  # 14. 截图保存结果
+  - action: screenshot
+    path: "httpbin_form_result.png"

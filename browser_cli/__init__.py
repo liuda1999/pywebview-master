@@ -1,0 +1,1 @@
+"""browser-cli: 基于 pywebview 的浏览器自动化 CLI 工具"""
